@@ -1,0 +1,43 @@
+admin:
+  ip: 0.0.0.0
+  port: 9990
+
+namers:
+- kind: io.l5d.consul
+  useHealthCheck: true
+  host: localhost
+  prefix: /default
+- kind: io.l5d.consul
+  useHealthCheck: true
+  healthStatuses:
+  - warning
+  host: localhost
+  prefix: /fallback
+
+routers:
+- protocol: thrift
+  label: thrift_server
+  thriftProtocol: binary
+  thriftMethodInDst: true
+  dtab: |
+    /svc => /#/fallback/.local/thrift_server;
+    /svc => /#/default/.local/thrift_server;
+  client:
+    thriftFramed: false
+    hostConnectionPool:
+      maxSize: 5
+      idleTimeMs: 10000
+    failureAccrual:
+      kind: io.l5d.consecutiveFailures
+      failures: 5
+      backoff:
+        kind: jittered
+        minMs: 5000
+        maxMs: 300000
+  servers:
+  - ip: 0.0.0.0
+    port: 5000
+    thriftFramed: false
+
+usage:
+  orgId: linkerd-examples-consul
